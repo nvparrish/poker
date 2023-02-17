@@ -5,8 +5,8 @@
 use std::cmp::Ordering;
 
 pub fn winning_hands<'a>(hands: &[&'a str]) -> Vec<&'a str> {
-    unimplemented!("Out of {hands:?}, which hand wins?")
-    hands
+    // unimplemented!("Out of {hands:?}, which hand wins?")
+    hands.to_vec()
 }
 
 enum PokerHands{
@@ -14,26 +14,26 @@ enum PokerHands{
     StraightFlush{high_value: char, suit: char},
     FourOfAKind{value: char, other_card:char},
     FullHouse{triplet_value: char, pair_value: char},
-    Flush{values: vec<char>},
+    Flush{values: Vec<char>},
     Stright{high_value: char},
-    ThreeOfAKind{value: char, other_cards: vec<char>},
+    ThreeOfAKind{value: char, other_cards: Vec<char>},
     TwoPair{value1: char, value2: char, other_card: char},
-    OnePair{value: char, other: vec<char>},
-    HighCard{value: vec<char>}
+    OnePair{value: char, other: Vec<char>},
+    HighCard{value: Vec<char>}
 }
 
-struct Hand {
-    hand: str,
+struct Hand<'a> {
+    hand: &'a str,
     evaluation: PokerHands,
 }
 
-impl PartialOrd for Hand {
+impl<'a> PartialOrd for Hand<'a> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        false
+        Some(Ordering::Equal)
     }
 }
 
-impl PartialEq for Hand {
+impl<'a> PartialEq for Hand<'a> {
     fn eq(&self, other: &Self) -> bool {
         false
     }
