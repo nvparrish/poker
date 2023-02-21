@@ -40,7 +40,27 @@ struct Hand<'a> {
     evaluation: PokerHands,
 }
 
-fn evaluate_hand<'a>(hand: &'a str) -> PokerHands {
+fn is_n_matching(values: &Vec<Option<usize>>, start: usize, count: usize) -> bool {
+    (&values[start..start+count]).iter().all(|&item| item.unwrap() == values[0].unwrap())
+}
+
+fn is_straight(values: &Vec<Option<usize>>) -> bool {
+    values.iter().enumerate().all(|(i,&x)| x.unwrap() == values[0].unwrap()+i)
+}
+
+fn is_low_ace_straight(values: &Vec<Option<usize>>) -> bool {
+    if values[values.len()-1].unwrap() == CARD_VALUES.len()-1 {
+        (&values[0..values.len() - 1]).iter().enumerate().all(|(i, &x)| x.unwrap() == values[0].unwrap() + i)
+    } else {
+        false
+    }
+}
+
+fn is_flush(suits: &Vec<char>) -> bool {
+    suits.iter().all(|&item| item == suits[0])
+}
+
+fn evaluate_hand(hand: & str) -> PokerHands {
     println!("Evaluating hand {:?}", &hand);
     let split = hand.split(' ').collect::<Vec<_>>();
     let mut values: Vec<Option<usize>> = Vec::with_capacity(split.capacity());
@@ -54,31 +74,99 @@ fn evaluate_hand<'a>(hand: &'a str) -> PokerHands {
     values.sort_unstable_by(compare_rank_of_values);
     println!("{:?}", values);
     println!("{:?}", suits);
+    let mut evaluation: PokerHands;
 
     // Check for a straight
-    let straight = values.iter().enumerate().all(|(i,&x)| x.unwrap() == values[0].unwrap()+i);
-    if straight {
-        println!("It's a straight!");
+    // let straight = values.iter().enumerate().all(|(i,&x)| x.unwrap() == values[0].unwrap()+i);
+    let straight = is_straight(&values);
+    let low_ace_straight = is_low_ace_straight(&values);
+    let flush = is_flush(&suits);
+    let mut four_of_a_kind: Option<PokerHands> = Option::None;
+    if is_n_matching(&values, 0, 4) {
+        four_of_a_kind = Some(PokerHands::FourOfAKind {value: values[0], other_card: values[1]});
+    } else if is_n_matching(&values, 1, 4) {
+        four_of_a_kind = Some(PokerHands::FourOfAKind {value: values[1], other_card: values[0]});
+    }
+    // Check full house and three of a kind
+    let mut full_house: Option<PokerHands> = Option::None;
+    let mut three_of_a_kind: Option<PokerHands> = Option::None;
+    if is_n_matching(&values, 0, 3) {
+        if is_n_matching(&values, 3, 2) {
+            full_house = Some(PokerHands::FullHouse {triplet_value: values[0], pair_value: values[3]});
+        } else {
+            three_of_a_kind = Some(PokerHands::ThreeOfAKind {value: values[0], other_cards: values[3..5].to_vec()});
+        }
+    } else if is_n_matching(&values, 1, 3) {
+        three_of_a_kind = Some(PokerHands::ThreeOfAKind {value: values[1], other_cards: vec![values[0], values[4]]});
+    } else if is_n_matching(&values, 2, 3) {
+        if is_n_matching(&values, 0, 2) {
+            full_house = Some(PokerHands::FullHouse {triplet_value: values[2], pair_value: values[0]});
+        } else {
+            three_of_a_kind = Some(PokerHands::ThreeOfAKind {value: values[2], other_cards: values[0..2].to_vec()});
+        }
     }
 
-    // Check for a low-ace straight
-    let mut low_ace_straight = false;
-    if (values[values.len()-1].unwrap() == CARD_VALUES.len()-1) {
-        low_ace_straight = values.iter().enumerate().all(|(i, &x)| x.unwrap() == values[0].unwrap()+i || i == values.len()-1);
+    // Set evaluation
+    if is_n_matching(&values, 0, 5) {
+        evaluation = PokerHands::FiveOfAKind {value: values[0]};
+    } else if straight && flush {
+        evaluation = PokerHands::StraightFlush{high_value: values[values.len()-1]};
+        println!("Straight flush with max value {}", CARD_VALUES[values[values.len()-1].unwrap()]);
+    } else if low_ace_straight && flush {
+        evaluation = PokerHands::StraightFlush{high_value: values[values.len()-2]};
+        println!("Straight flush with max value {}", CARD_VALUES[values[values.len()-2].unwrap()]);
+    } else if four_of_a_kind.is_some(){
+        println!("Four of a kind");
+        evaluation = four_of_a_kind.unwrap();
+    } else if full_house.is_some() {
+        println!("Full House");
+        evaluation = full_house.unwrap();
+    } else if flush {
+        println!("Flush");
+        evaluation = PokerHands::Flush{values: values};
+    } else if straight {
+        println!("Straight");
+        evaluation = PokerHands::Straight { high_value: values[values.len() - 1] };
+    } else if low_ace_straight {
+        println!("Straight");
+        evaluation = PokerHands::Straight { high_value: values[values.len() - 2] };
+    } else if three_of_a_kind.is_some() {
+        println!("Three of a kind");
+        evaluation = three_of_a_kind.unwrap();
+    } else { // Pairs or high cards
+        if is_n_matching(&values, 0, 2) {
+            if is_n_matching(&values, 2, 2) {
+                println!("Two pair {} over {}", CARD_VALUES[values[2].unwrap()], CARD_VALUES[values[0].unwrap()]);
+                evaluation = PokerHands::TwoPair {value1: values[2], value2: values[0], other_card: values[4]};
+            } else if is_n_matching(&values, 3, 2) {
+                println!("Two pair {} over {}", CARD_VALUES[values[3].unwrap()], CARD_VALUES[values[0].unwrap()]);
+                evaluation = PokerHands::TwoPair {value1: values[3], value2: values[0], other_card: values[2]};
+            } else {
+                println!("One pair of  {}", CARD_VALUES[values[0].unwrap()]);
+                evaluation = PokerHands::OnePair {value: values[0], other: values[2..5].to_vec()};
+            }
+        } else if is_n_matching(&values, 1, 2) {
+            if is_n_matching(&values, 3, 2) {
+                println!("Two pair {} over {}", CARD_VALUES[values[3].unwrap()], CARD_VALUES[values[1].unwrap()]);
+                evaluation = PokerHands::TwoPair {value1: values[3], value2: values[1], other_card: values[0]};
+            } else {
+                println!("One pair of  {}", CARD_VALUES[values[3].unwrap()]);
+                evaluation = PokerHands::OnePair {value: values[3], other: vec![values[0],values[3], values[4]]};
+            }
+        } else if is_n_matching(&values, 2, 2) {
+            println!("One pair of  {}", CARD_VALUES[values[2].unwrap()]);
+            evaluation = PokerHands::OnePair {value: values[2], other: vec![values[0], values[1], values[4]]};
+        } else if is_n_matching(&values, 3, 2) {
+            println!("One pair of  {}", CARD_VALUES[values[3].unwrap()]);
+            evaluation = PokerHands::OnePair {value: values[2], other: values[0..3].to_vec()};
+        } else {
+            println!("High value with max value {}", CARD_VALUES[values[values.len() - 1].unwrap()]);
+            evaluation = PokerHands::HighCard { value: values }
+        }
     }
-    if low_ace_straight {
-        println!("It's a low-ace straight!");
-    }
-
-    // Check for a flush
-    let flush = suits.iter().all(|&item| item == suits[0]);
-    if flush {
-        println!("It's a flush!");
-    }
-
-
-    PokerHands::HighCard{value: values}
+    evaluation
 }
+
 impl<'a> PartialOrd for Hand<'a> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(Ordering::Equal)
