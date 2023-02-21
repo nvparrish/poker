@@ -175,19 +175,27 @@ impl<'a> PartialOrd for Hand<'a> {
 
 impl<'a> PartialEq for Hand<'a> {
     fn eq(&self, other: &Self) -> bool {
-        match self.evaluation {
-            PokerHands::FiveOfAKind{value: value1} => {
-                match other.evaluation {
-                    PokerHands::FiveOfAKind{value: value2} => {
-                        if Some(&value1) == Some(&value2) {
-                            true
-                        } else {
-                            false
-                        }
-                    }
-                    _ => false
-                }
-            }
+        match (&self.evaluation, &other.evaluation) {
+            (PokerHands::FiveOfAKind{value: value1}, PokerHands::FiveOfAKind {value: value2}) =>
+                if value1 == value2 {true} else {false}
+            (PokerHands::StraightFlush {high_value: value1}, PokerHands::StraightFlush {high_value: value2}) =>
+                if value1 == value2 {true} else {false}
+            (PokerHands::FourOfAKind {value: value1, other_card: other1}, PokerHands::FourOfAKind {value:value2, other_card:other2}) =>
+                if value1 == value2 && other1 == other2 {true} else {false}
+            (PokerHands::FullHouse {triplet_value: triple1, pair_value:pair1}, PokerHands::FullHouse {triplet_value:triple2, pair_value:pair2}) =>
+                if triple1 == triple2 && pair1 == pair2 {true} else {false}
+            (PokerHands::Flush {values:values1}, PokerHands::Flush{values: values2}) =>
+                if values1 == values2 {true} else {false}
+            (PokerHands::Straight {high_value: high1}, PokerHands::Straight {high_value:high2}) =>
+                if high1 == high2 {true} else {false}
+            (PokerHands::ThreeOfAKind {value: value1, other_cards: other1}, PokerHands::ThreeOfAKind {value:value2, other_cards:other2}) =>
+                if value1==value2 && other1 == other2 {true} else {false}
+            (PokerHands::TwoPair {value1:high1, value2:low1, other_card: other1}, PokerHands::TwoPair{value1:high2, value2:low2, other_card:other2}) =>
+                if high1==high2 && low1==low2 && other1==other2 {true} else {false}
+            (PokerHands::OnePair{value: value1, other:other1}, PokerHands::OnePair{value:value2, other:other2}) =>
+                if value1==value2 && other1==other2 {true} else {false}
+            (PokerHands::HighCard {value:value1}, PokerHands::HighCard {value:value2}) =>
+                if value1==value2 {true} else {false}
             _ => false
         }
     }
