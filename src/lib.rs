@@ -6,11 +6,11 @@ use std::cmp::Ordering;
 
 const CARD_VALUES: [&'static str; 13] = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"];
 
-fn rank_of_value<'a>(value: &'a str) -> Option<usize> {
+fn rank_of_value<>(value: & str) -> Option<usize> {
     CARD_VALUES.iter().position(|&r| r == value)
 }
 
-fn compare_rank_of_values<'a, 'b>(a: &'a Option<usize>, b: &'b Option<usize>) -> Ordering {
+fn compare_rank_of_values(a: &Option<usize>, b: &Option<usize>) -> Ordering {
     a.cmp(b)
 }
 pub fn winning_hands<'a>(hands: &[&'a str]) -> Vec<&'a str> {
