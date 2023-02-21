@@ -82,7 +82,7 @@ fn evaluate_hand(hand: & str) -> PokerHands {
     values.sort_unstable_by(compare_rank_of_values);
     println!("{:?}", values);
     println!("{:?}", suits);
-    let mut evaluation: PokerHands;
+    let evaluation: PokerHands;
 
     // Check for a straight
     // let straight = values.iter().enumerate().all(|(i,&x)| x.unwrap() == values[0].unwrap()+i);
@@ -182,17 +182,12 @@ impl<'a> PartialOrd for Hand<'a> {
             PokerHands::HighCard {value: value1} =>
                 match &other.evaluation {
                     PokerHands::HighCard {value: value2} => {
-                        let mut result = Some(Ordering::Equal);
+                        let mut result = Ordering::Equal;
                         for (i, j) in value1.iter().zip( value2.iter()) {
-                            if i < j {
-                                result = Some(Ordering::Less);
-                                break;
-                            } else if i > j {
-                                result = Some(Ordering::Greater);
-                                break;
-                            }
+                            result =i.cmp(j);
+                            if result != Ordering::Equal {break;}
                         }
-                        result
+                        Some(result)
                     }
                     _ => Some(Ordering::Less)
                 }
@@ -203,17 +198,12 @@ impl<'a> PartialOrd for Hand<'a> {
                         if value1 < value2 {Some(Ordering::Less)}
                         else if value1 > value2 {Some(Ordering::Greater)}
                         else {
-                            let mut result = Some(Ordering::Equal);
+                            let mut result = Ordering::Equal;
                             for (i, j) in other1.iter().zip( other2.iter()) {
-                                if i < j {
-                                    result = Some(Ordering::Less);
-                                    break;
-                                } else if i > j {
-                                    result = Some(Ordering::Greater);
-                                    break;
-                                }
+                                result = i.cmp(j);
+                                if result != Ordering::Equal {break;}
                             }
-                            result
+                            Some(result)
                         }
                     }
                     _ => Some(Ordering::Less)
@@ -223,13 +213,10 @@ impl<'a> PartialOrd for Hand<'a> {
                     PokerHands::HighCard {value: _} |
                     PokerHands::OnePair {value: _, other: _} => Some(Ordering::Greater),
                     PokerHands::TwoPair {value1: high2, value2: low2, other_card: other2} => {
-                        if high1 < high2 { Some(Ordering::Less) }
-                        else if high1 > high2 { Some(Ordering::Greater) }
-                        else if low1 < low2 { Some(Ordering::Less) }
-                        else if low1 > low2 { Some(Ordering::Greater) }
-                        else if other1 < other2 { Some(Ordering::Less) }
-                        else if other1 > other2 { Some(Ordering::Greater) }
-                        else { Some(Ordering::Equal) }
+                        let mut result = Some(high1.cmp(high2));
+                        if result.unwrap() == Ordering::Equal {result = Some(low1.cmp(low2));}
+                        if result.unwrap() == Ordering::Equal {result = Some(other1.cmp(other2));}
+                        result
                     }
                     _ => Some(Ordering::Less)
                 }
@@ -240,22 +227,16 @@ impl<'a> PartialOrd for Hand<'a> {
                     PokerHands::FourOfAKind {value: _, other_card: _} |
                     PokerHands::Flush {values: _} |
                     PokerHands::Straight {high_value: _} => Some(Ordering::Less),
-                    PokerHands::ThreeOfAKind {value: value2, other_cards: other2} =>
-                        if value1 < value2 {Some(Ordering::Less)}
-                        else if value1 > value2 {Some(Ordering::Greater)}
-                        else {
-                            let mut result = Some(Ordering::Equal);
-                            for (i, j) in other1.iter().zip( other2.iter()) {
-                                if i < j {
-                                    result = Some(Ordering::Less);
-                                    break;
-                                } else if i > j {
-                                    result = Some(Ordering::Greater);
-                                    break;
-                                }
+                    PokerHands::ThreeOfAKind {value: value2, other_cards: other2} => {
+                        let mut result = value1.cmp(value2);
+                        if result == Ordering::Equal {
+                            for (i, j) in other1.iter().zip(other2.iter()) {
+                                result = i.cmp(j);
+                                if result != Ordering::Equal { break; }
                             }
-                            result
                         }
+                        Some(result)
+                    }
                     _ => Some(Ordering::Greater)
                 }
             PokerHands::Straight {high_value: high1} =>
@@ -264,10 +245,7 @@ impl<'a> PartialOrd for Hand<'a> {
                     PokerHands::StraightFlush {high_value: _} |
                     PokerHands::FourOfAKind {value: _, other_card: _} |
                     PokerHands::Flush {values: _} => Some(Ordering::Less),
-                    PokerHands::Straight {high_value: high2} =>
-                        if high1 < high2 {Some(Ordering::Less)}
-                        else if high1 > high2 {Some(Ordering::Greater)}
-                        else {Some(Ordering::Equal)}
+                    PokerHands::Straight {high_value: high2} => Some(high1.cmp(high2)),
                     _ => Some(Ordering::Greater)
                 }
             PokerHands::Flush { values: values1 } =>
@@ -276,17 +254,12 @@ impl<'a> PartialOrd for Hand<'a> {
                     PokerHands::StraightFlush { high_value:_ } |
                     PokerHands::FourOfAKind { value:_, other_card:_ } => Some(Ordering::Less),
                     PokerHands::Flush { values: values2 } => {
-                        let mut result = Some(Ordering::Equal);
+                        let mut result = Ordering::Equal;
                         for (i, j) in values1.iter().zip( values2.iter()) {
-                            if i < j {
-                                result = Some(Ordering::Less);
-                                break;
-                            } else if i > j {
-                                result = Some(Ordering::Greater);
-                                break;
-                            }
+                            result = i.cmp(j);
+                            if result != Ordering::Equal {break;}
                         }
-                        result
+                        Some(result)
                     }
                     _ => Some(Ordering::Greater)
                 }
@@ -294,27 +267,23 @@ impl<'a> PartialOrd for Hand<'a> {
                 match &other.evaluation {
                     PokerHands::FiveOfAKind {value:_} | PokerHands::StraightFlush {high_value:_} => Some(Ordering::Less),
                     PokerHands::FourOfAKind {value: value2, other_card: other2} => {
-                        if value1 < value2 { Some(Ordering::Less)}
-                        else if value1 > value2 {Some(Ordering::Greater)}
-                        else if other1 < other2 {Some(Ordering::Less)}
-                        else if other1 > other2 {Some(Ordering::Greater)}
-                        else {Some(Ordering::Equal)}
+                        let mut result = value1.cmp(value2);
+                        if result == Ordering::Equal {
+                            result = other1.cmp(other2);
+                        }
+                        Some(result)
                     }
                     _ => Some(Ordering::Greater)
             }
             PokerHands::StraightFlush {high_value: high1} =>
                 match &other.evaluation {
                     PokerHands::FiveOfAKind{value:_} => Some(Ordering::Less),
-                    PokerHands::StraightFlush {high_value: high2} => {
-                        if high1 < high2 { Some(Ordering::Less) } else if high1 == high2 { Some(Ordering::Equal) } else { Some(Ordering::Greater) }
-                    }
+                    PokerHands::StraightFlush {high_value: high2} => Some(high1.cmp(high2)),
                     _ => Some(Ordering::Greater)
             }
             PokerHands::FiveOfAKind{value: value1} =>
                 match &other.evaluation {
-                    PokerHands::FiveOfAKind {value: value2} => {
-                        if value1 < value2 { Some(Ordering::Less) } else if value1 == value2 { Some(Ordering::Equal) } else { Some(Ordering::Greater) }
-                    }
+                    PokerHands::FiveOfAKind {value: value2} => Some(value1.cmp(value2)),
                     _ => Some(Ordering::Greater)
                 }
             _ => Option::None
