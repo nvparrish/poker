@@ -4,6 +4,7 @@
 /// the winning hand(s) as were passed in, not reconstructed strings which happen to be equal.
 use std::cmp::Ordering;
 
+// CODE TO ESTABLISH RANK BASED ON CARD VALUES ====================================================
 const CARD_VALUES: [&'static str; 13] = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"];
 
 fn rank_of_value<>(value: & str) -> Option<usize> {
@@ -13,6 +14,8 @@ fn rank_of_value<>(value: & str) -> Option<usize> {
 fn compare_rank_of_values(a: &Option<usize>, b: &Option<usize>) -> Ordering {
     a.cmp(b)
 }
+
+// FUNCTION FOR WINNING HANDS EVALUATION ==========================================================
 pub fn winning_hands<'a>(hands: &[&'a str]) -> Vec<&'a str> {
     // unimplemented!("Out of {hands:?}, which hand wins?")
     for h in hands {
@@ -22,6 +25,7 @@ pub fn winning_hands<'a>(hands: &[&'a str]) -> Vec<&'a str> {
     hands.to_vec()
 }
 
+// Enumeration of possible poker hands == ==========================================================
 enum PokerHands{
     FiveOfAKind{value: Option<usize>},
     StraightFlush{high_value: Option<usize>},
@@ -35,10 +39,13 @@ enum PokerHands{
     HighCard{value: Vec<Option<usize>>}
 }
 
+// Structure for a hand and its evaluation =========================================================
 struct Hand<'a> {
     hand: &'a str,
     evaluation: PokerHands,
 }
+
+// UTILITY FUNCTIONS TO FIND PATTERNS ==============================================================
 
 fn is_n_matching(values: &Vec<Option<usize>>, start: usize, count: usize) -> bool {
     (&values[start..start+count]).iter().all(|&item| item.unwrap() == values[0].unwrap())
@@ -60,6 +67,7 @@ fn is_flush(suits: &Vec<char>) -> bool {
     suits.iter().all(|&item| item == suits[0])
 }
 
+// EVALUATION OF HAND =============================================================================
 fn evaluate_hand(hand: & str) -> PokerHands {
     println!("Evaluating hand {:?}", &hand);
     let split = hand.split(' ').collect::<Vec<_>>();
@@ -167,12 +175,154 @@ fn evaluate_hand(hand: & str) -> PokerHands {
     evaluation
 }
 
+// PartialEq partial_cmp function ==================================================================
 impl<'a> PartialOrd for Hand<'a> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(Ordering::Equal)
+        match &self.evaluation {
+            PokerHands::HighCard {value: value1} =>
+                match &other.evaluation {
+                    PokerHands::HighCard {value: value2} => {
+                        let mut result = Some(Ordering::Equal);
+                        for (i, j) in value1.iter().zip( value2.iter()) {
+                            if i < j {
+                                result = Some(Ordering::Less);
+                                break;
+                            } else if i > j {
+                                result = Some(Ordering::Greater);
+                                break;
+                            }
+                        }
+                        result
+                    }
+                    _ => Some(Ordering::Less)
+                }
+            PokerHands::OnePair {value: value1, other: other1} =>
+                match &other.evaluation {
+                    PokerHands::HighCard {value: _} => Some(Ordering::Greater),
+                    PokerHands::OnePair {value: value2, other: other2} => {
+                        if value1 < value2 {Some(Ordering::Less)}
+                        else if value1 > value2 {Some(Ordering::Greater)}
+                        else {
+                            let mut result = Some(Ordering::Equal);
+                            for (i, j) in other1.iter().zip( other2.iter()) {
+                                if i < j {
+                                    result = Some(Ordering::Less);
+                                    break;
+                                } else if i > j {
+                                    result = Some(Ordering::Greater);
+                                    break;
+                                }
+                            }
+                            result
+                        }
+                    }
+                    _ => Some(Ordering::Less)
+                }
+            PokerHands::TwoPair {value1: high1, value2: low1, other_card: other1} =>
+                match &other.evaluation {
+                    PokerHands::HighCard {value: _} |
+                    PokerHands::OnePair {value: _, other: _} => Some(Ordering::Greater),
+                    PokerHands::TwoPair {value1: high2, value2: low2, other_card: other2} => {
+                        if high1 < high2 { Some(Ordering::Less) }
+                        else if high1 > high2 { Some(Ordering::Greater) }
+                        else if low1 < low2 { Some(Ordering::Less) }
+                        else if low1 > low2 { Some(Ordering::Greater) }
+                        else if other1 < other2 { Some(Ordering::Less) }
+                        else if other1 > other2 { Some(Ordering::Greater) }
+                        else { Some(Ordering::Equal) }
+                    }
+                    _ => Some(Ordering::Less)
+                }
+            PokerHands::ThreeOfAKind {value: value1, other_cards: other1} =>
+                match &other.evaluation {
+                    PokerHands::FiveOfAKind {value: _} |
+                    PokerHands::StraightFlush {high_value: _} |
+                    PokerHands::FourOfAKind {value: _, other_card: _} |
+                    PokerHands::Flush {values: _} |
+                    PokerHands::Straight {high_value: _} => Some(Ordering::Less),
+                    PokerHands::ThreeOfAKind {value: value2, other_cards: other2} =>
+                        if value1 < value2 {Some(Ordering::Less)}
+                        else if value1 > value2 {Some(Ordering::Greater)}
+                        else {
+                            let mut result = Some(Ordering::Equal);
+                            for (i, j) in other1.iter().zip( other2.iter()) {
+                                if i < j {
+                                    result = Some(Ordering::Less);
+                                    break;
+                                } else if i > j {
+                                    result = Some(Ordering::Greater);
+                                    break;
+                                }
+                            }
+                            result
+                        }
+                    _ => Some(Ordering::Greater)
+                }
+            PokerHands::Straight {high_value: high1} =>
+                match &other.evaluation {
+                    PokerHands::FiveOfAKind {value: _} |
+                    PokerHands::StraightFlush {high_value: _} |
+                    PokerHands::FourOfAKind {value: _, other_card: _} |
+                    PokerHands::Flush {values: _} => Some(Ordering::Less),
+                    PokerHands::Straight {high_value: high2} =>
+                        if high1 < high2 {Some(Ordering::Less)}
+                        else if high1 > high2 {Some(Ordering::Greater)}
+                        else {Some(Ordering::Equal)}
+                    _ => Some(Ordering::Greater)
+                }
+            PokerHands::Flush { values: values1 } =>
+                match &other.evaluation {
+                    PokerHands::FiveOfAKind { value:_ } |
+                    PokerHands::StraightFlush { high_value:_ } |
+                    PokerHands::FourOfAKind { value:_, other_card:_ } => Some(Ordering::Less),
+                    PokerHands::Flush { values: values2 } => {
+                        let mut result = Some(Ordering::Equal);
+                        for (i, j) in values1.iter().zip( values2.iter()) {
+                            if i < j {
+                                result = Some(Ordering::Less);
+                                break;
+                            } else if i > j {
+                                result = Some(Ordering::Greater);
+                                break;
+                            }
+                        }
+                        result
+                    }
+                    _ => Some(Ordering::Greater)
+                }
+            PokerHands::FourOfAKind {value: value1, other_card: other1} =>
+                match &other.evaluation {
+                    PokerHands::FiveOfAKind {value:_} | PokerHands::StraightFlush {high_value:_} => Some(Ordering::Less),
+                    PokerHands::FourOfAKind {value: value2, other_card: other2} => {
+                        if value1 < value2 { Some(Ordering::Less)}
+                        else if value1 > value2 {Some(Ordering::Greater)}
+                        else if other1 < other2 {Some(Ordering::Less)}
+                        else if other1 > other2 {Some(Ordering::Greater)}
+                        else {Some(Ordering::Equal)}
+                    }
+                    _ => Some(Ordering::Greater)
+            }
+            PokerHands::StraightFlush {high_value: high1} =>
+                match &other.evaluation {
+                    PokerHands::FiveOfAKind{value:_} => Some(Ordering::Less),
+                    PokerHands::StraightFlush {high_value: high2} => {
+                        if high1 < high2 { Some(Ordering::Less) } else if high1 == high2 { Some(Ordering::Equal) } else { Some(Ordering::Greater) }
+                    }
+                    _ => Some(Ordering::Greater)
+            }
+            PokerHands::FiveOfAKind{value: value1} =>
+                match &other.evaluation {
+                    PokerHands::FiveOfAKind {value: value2} => {
+                        if value1 < value2 { Some(Ordering::Less) } else if value1 == value2 { Some(Ordering::Equal) } else { Some(Ordering::Greater) }
+                    }
+                    _ => Some(Ordering::Greater)
+                }
+            _ => Option::None
+        }
     }
 }
 
+// PartialEq eq function ===========================================================================
 impl<'a> PartialEq for Hand<'a> {
     fn eq(&self, other: &Self) -> bool {
         match (&self.evaluation, &other.evaluation) {
